@@ -1,0 +1,106 @@
+[
+  {
+    "name": "OLT Batujaya",
+    "model": "C-Data FD1616S-B2",
+    "site": "Batujaya",
+    "ip": "192.168.51.51",
+    "protocol": "telnet",
+    "pon_count": 16
+  },
+  {
+    "name": "OLT Cicaheum",
+    "model": "Tenda TES7001",
+    "site": "Cicaheum",
+    "ip": "172.16.200.254",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Cikalong Wetan",
+    "model": "Tenda TES7001",
+    "site": "Cikalong Wetan",
+    "ip": "192.168.103.2",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Pamengpeuk",
+    "model": "Tenda TES7001",
+    "site": "Pamengpeuk",
+    "ip": "172.16.130.254",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Jamblang",
+    "model": "Tenda TES7001",
+    "site": "Jamblang",
+    "ip": "172.16.95.254",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Bojong Asih",
+    "model": "Tenda TES7001",
+    "site": "Bojong Asih",
+    "ip": "172.40.140.254",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Rusun",
+    "model": "Tenda TES7001",
+    "site": "Rusun",
+    "ip": "172.16.100.254",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Ibun",
+    "model": "C-Data FD1608S",
+    "site": "Ibun",
+    "ip": "172.16.15.15",
+    "protocol": "telnet",
+    "pon_count": 8
+  },
+  {
+    "name": "OLT Pangalengan",
+    "model": "Tenda TES7001",
+    "site": "Pangalengan",
+    "ip": "172.10.100.254",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Pangalengan 2",
+    "model": "C-Data FD1604E-C1",
+    "site": "Pangalengan 2",
+    "ip": "172.210.19.19",
+    "protocol": "telnet",
+    "pon_count": 4
+  },
+  {
+    "name": "OLT Sumedang",
+    "model": "Tenda TES7001",
+    "site": "Sumedang",
+    "ip": "192.168.5.254",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Tasikmalaya",
+    "model": "Tenda TES7001",
+    "site": "Tasikmalaya",
+    "ip": "172.16.98.254",
+    "protocol": "telnet",
+    "pon_count": 1
+  },
+  {
+    "name": "OLT Singaparna",
+    "model": "HSGQ G02ID",
+    "site": "Singaparna",
+    "ip": "172.16.20.254",
+    "protocol": "telnet",
+    "pon_count": 4
+  }
+]

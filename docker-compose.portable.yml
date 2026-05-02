@@ -1,0 +1,208 @@
+services:
+  mongo:
+    image: mongo:8.0
+    container_name: ${PROJECT_NAME}-mongo
+    command: ["--bind_ip_all", "--nounixsocket"]
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    networks:
+      - acs_net
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh mongodb://localhost:27017/admin --quiet --eval \"db.runCommand({ ping: 1 }).ok\" | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  mongo-seed:
+    image: mongo:8.0
+    container_name: ${PROJECT_NAME}-mongo-seed
+    restart: "no"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ}
+      MONGO_DATABASE: ${MONGO_DATABASE}
+      MONGO_URI: mongodb://mongo:27017
+    volumes:
+      - ./imports/mongo-base:/seed/mongo-base:ro
+      - ./scripts/import-mongo-base.sh:/scripts/import-mongo-base.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/import-mongo-base.sh"]
+    networks:
+      - acs_net
+
+  genieacs-init:
+    build:
+      context: .
+      dockerfile: ./genieacs-init/Dockerfile
+    container_name: ${PROJECT_NAME}-genieacs-init
+    restart: "no"
+    depends_on:
+      mongo-seed:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ}
+      NODE_PATH: /app/node_modules
+      MONGO_DATABASE: ${MONGO_DATABASE}
+      MONGO_URI: mongodb://mongo:27017
+      GENIEACS_DISABLE_CUSTOM_UI: ${GENIEACS_DISABLE_CUSTOM_UI}
+      GENIEACS_ADMIN_USERNAME: ${GENIEACS_ADMIN_USERNAME}
+      GENIEACS_ADMIN_PASSWORD: ${GENIEACS_ADMIN_PASSWORD}
+      GENIEACS_CPE_USERNAME: ${GENIEACS_CPE_USERNAME}
+      GENIEACS_CPE_PASSWORD: ${GENIEACS_CPE_PASSWORD}
+    volumes:
+      - ./overlays:/overlays:ro
+      - ./scripts/init-genieacs.js:/scripts/init-genieacs.js:ro
+    entrypoint: ["node", "/scripts/init-genieacs.js"]
+    networks:
+      - acs_net
+
+  genieacs:
+    image: drumsergio/genieacs:1.2.16.0
+    container_name: ${PROJECT_NAME}-genieacs
+    restart: unless-stopped
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mongo-seed:
+        condition: service_completed_successfully
+      genieacs-init:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ}
+      GENIEACS_UI_JWT_SECRET: ${GENIEACS_UI_JWT_SECRET}
+      GENIEACS_CWMP_ACCESS_LOG_FILE: /var/log/genieacs/genieacs-cwmp-access.log
+      GENIEACS_NBI_ACCESS_LOG_FILE: /var/log/genieacs/genieacs-nbi-access.log
+      GENIEACS_FS_ACCESS_LOG_FILE: /var/log/genieacs/genieacs-fs-access.log
+      GENIEACS_UI_ACCESS_LOG_FILE: /var/log/genieacs/genieacs-ui-access.log
+      GENIEACS_DEBUG_FILE: /var/log/genieacs/genieacs-debug.yaml
+      GENIEACS_EXT_DIR: /opt/genieacs/ext
+      GENIEACS_FS_URL_PREFIX: ${GENIEACS_FS_URL}/
+      GENIEACS_MONGODB_CONNECTION_URL: mongodb://mongo:27017/${MONGO_DATABASE}
+    ports:
+      - "7547:7547"
+      - "7557:7557"
+      - "7567:7567"
+      - "3000:3000"
+    volumes:
+      - genieacs_ext:/opt/genieacs/ext
+      - genieacs_logs:/var/log/genieacs
+    networks:
+      - acs_net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: ./dashboard/docker/php/Dockerfile
+    container_name: ${PROJECT_NAME}-dashboard
+    restart: unless-stopped
+    depends_on:
+      genieacs:
+        condition: service_started
+    environment:
+      APP_NAME: NETKING-ACS
+      APP_URL: ${PUBLIC_DASHBOARD_URL}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_TIMEZONE: ${TZ}
+      TELEGRAM_BOT_TRANSPORT: ${TELEGRAM_BOT_TRANSPORT:-polling}
+      TELEGRAM_POLLING_TARGET_URL: ${TELEGRAM_POLLING_TARGET_URL:-http://dashboard/webhook/telegram.php}
+      SESSION_NAME: GACS_SESSION
+      SESSION_LIFETIME: "3600"
+      SESSION_SECURE: "false"
+      CPE_WRITE_ENABLED: ${CPE_WRITE_ENABLED:-false}
+      REMOVE_INIT_PHP: "true"
+      DB_HOST: ${DASHBOARD_DB_HOST}
+      DB_NAME: ${DASHBOARD_DB_NAME}
+      DB_USER: ${DASHBOARD_DB_USER}
+      DB_PASSWORD: ${DASHBOARD_DB_PASSWORD}
+      DASHBOARD_ADMIN_USERNAME: ${DASHBOARD_ADMIN_USERNAME}
+      DASHBOARD_ADMIN_PASSWORD: ${DASHBOARD_ADMIN_PASSWORD}
+      DASHBOARD_GENIEACS_HOST: genieacs
+      DASHBOARD_GENIEACS_PORT: "7557"
+      DASHBOARD_GENIEACS_USERNAME: ""
+      DASHBOARD_GENIEACS_PASSWORD: ""
+    ports:
+      - "80:80"
+    networks:
+      - acs_net
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://127.0.0.1/login.php') === false ? 1 : 0);\""]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  telegram-poller:
+    build:
+      context: .
+      dockerfile: ./dashboard/docker/php/Dockerfile
+    container_name: ${PROJECT_NAME}-telegram-poller
+    restart: unless-stopped
+    depends_on:
+      dashboard:
+        condition: service_started
+    environment:
+      APP_NAME: NETKING-ACS
+      APP_URL: ${PUBLIC_DASHBOARD_URL}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_TIMEZONE: ${TZ}
+      TELEGRAM_BOT_TRANSPORT: ${TELEGRAM_BOT_TRANSPORT:-polling}
+      TELEGRAM_POLLING_TARGET_URL: ${TELEGRAM_POLLING_TARGET_URL:-http://dashboard/webhook/telegram.php}
+      DB_HOST: ${DASHBOARD_DB_HOST}
+      DB_NAME: ${DASHBOARD_DB_NAME}
+      DB_USER: ${DASHBOARD_DB_USER}
+      DB_PASSWORD: ${DASHBOARD_DB_PASSWORD}
+    entrypoint: ["php", "/var/www/html/cron/telegram-poller.php"]
+    networks:
+      - acs_net
+
+  telegram-monitor:
+    build:
+      context: .
+      dockerfile: ./dashboard/docker/php/Dockerfile
+    container_name: ${PROJECT_NAME}-telegram-monitor
+    restart: unless-stopped
+    depends_on:
+      dashboard:
+        condition: service_started
+      telegram-poller:
+        condition: service_started
+    environment:
+      APP_NAME: NETKING-ACS
+      APP_URL: ${PUBLIC_DASHBOARD_URL}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_TIMEZONE: ${TZ}
+      DB_HOST: ${DASHBOARD_DB_HOST}
+      DB_NAME: ${DASHBOARD_DB_NAME}
+      DB_USER: ${DASHBOARD_DB_USER}
+      DB_PASSWORD: ${DASHBOARD_DB_PASSWORD}
+    entrypoint: ["sh", "-lc", "while true; do php /var/www/html/cron/device-monitor.php; sleep ${TELEGRAM_MONITOR_INTERVAL:-300}; done"]
+    networks:
+      - acs_net
+
+volumes:
+  mongo_data:
+  mongo_config:
+  genieacs_ext:
+  genieacs_logs:
+
+networks:
+  acs_net:
+    driver: bridge
