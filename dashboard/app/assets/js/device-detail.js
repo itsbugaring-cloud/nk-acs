@@ -553,16 +553,15 @@ function makeIPClickable(ip) {
 
 function renderTopologyLocationTab(locationResult) {
     if (!locationResult || !locationResult.success) {
-        return '<div class="alert alert-info"><i class="bi bi-info-circle"></i> Unable to load topology location</div>';
+        return '<div class="alert alert-info"><i class="bi bi-info-circle"></i> Lokasi topologi tidak aktif.</div>';
     }
 
-    // ONU not found in map
+    // ONU not found in inventory location
     if (!locationResult.location || !locationResult.location.found) {
         return `
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i>
-                <strong>Topology Location:</strong> This device has not been added to the network map yet.
-                <a href="/map.php" class="alert-link">Add to map</a>
+                <strong>Lokasi:</strong> Data lokasi perangkat belum tersedia.
             </div>
         `;
     }
@@ -604,9 +603,6 @@ function renderTopologyLocationTab(locationResult) {
                 <th width="30%"><i class="bi bi-box"></i> ODP</th>
                 <td>
                     <strong>${loc.odp.name}</strong>
-                    <a href="/map.php?focus_type=odp&focus_id=${loc.odp.id}" class="btn btn-sm btn-outline-primary ms-2" target="_blank">
-                        <i class="bi bi-map"></i> View on Map
-                    </a>
                 </td>
             </tr>
         `;
@@ -629,9 +625,6 @@ function renderTopologyLocationTab(locationResult) {
                 <th><i class="bi bi-building"></i> ODC</th>
                 <td>
                     <strong>${loc.odc.name}</strong>
-                    <a href="/map.php?focus_type=odc&focus_id=${loc.odc.id}" class="btn btn-sm btn-outline-warning ms-2" target="_blank">
-                        <i class="bi bi-map"></i> View on Map
-                    </a>
                 </td>
             </tr>
         `;
@@ -664,9 +657,6 @@ function renderTopologyLocationTab(locationResult) {
                         <a href="${googleMapsUrl}" class="btn btn-sm btn-success ms-2" target="_blank" rel="noopener noreferrer">
                             <i class="bi bi-globe"></i> View on Google Maps
                         </a>
-                        <a href="/map.php?focus_type=onu&focus_id=${loc.onu.id}" class="btn btn-sm btn-outline-primary ms-1" target="_blank">
-                            <i class="bi bi-map"></i> View on Network Map
-                        </a>
                     </td>
                 </tr>
             `;
@@ -682,13 +672,12 @@ function renderTopologyLocation(locationResult) {
         return '';
     }
 
-    // ONU not found in map
+    // ONU not found in inventory location
     if (!locationResult.location || !locationResult.location.found) {
         return `
             <div class="alert alert-info mb-3">
                 <i class="bi bi-info-circle"></i>
-                <strong>Topology Location:</strong> This device has not been added to the network map yet.
-                <a href="/map.php" class="alert-link">Add to map</a>
+                <strong>Lokasi:</strong> Data lokasi perangkat belum tersedia.
             </div>
         `;
     }
@@ -696,7 +685,7 @@ function renderTopologyLocation(locationResult) {
     const loc = locationResult.location;
     let html = '<div class="card mb-3 border-primary">';
     html += '<div class="card-header bg-primary text-white">';
-    html += '<i class="bi bi-diagram-3"></i> <strong>Network Topology Location</strong>';
+    html += '<i class="bi bi-diagram-3"></i> <strong>Lokasi Jaringan</strong>';
     html += '</div>';
     html += '<div class="card-body">';
 
@@ -734,9 +723,6 @@ function renderTopologyLocation(locationResult) {
                 <th width="30%"><i class="bi bi-box"></i> ODP</th>
                 <td>
                     <strong>${loc.odp.name}</strong>
-                    <a href="/map.php?focus_type=odp&focus_id=${loc.odp.id}" class="btn btn-sm btn-outline-primary ms-2" target="_blank">
-                        <i class="bi bi-map"></i> View on Map
-                    </a>
                 </td>
             </tr>
         `;
@@ -759,9 +745,6 @@ function renderTopologyLocation(locationResult) {
                 <th><i class="bi bi-building"></i> ODC</th>
                 <td>
                     <strong>${loc.odc.name}</strong>
-                    <a href="/map.php?focus_type=odc&focus_id=${loc.odc.id}" class="btn btn-sm btn-outline-warning ms-2" target="_blank">
-                        <i class="bi bi-map"></i> View on Map
-                    </a>
                 </td>
             </tr>
         `;
@@ -793,9 +776,6 @@ function renderTopologyLocation(locationResult) {
                         <code>${lat.toFixed(6)}, ${lng.toFixed(6)}</code>
                         <a href="${googleMapsUrl}" class="btn btn-sm btn-success ms-2" target="_blank" rel="noopener noreferrer">
                             <i class="bi bi-globe"></i> View on Google Maps
-                        </a>
-                        <a href="/map.php?focus_type=onu&focus_id=${loc.onu.id}" class="btn btn-sm btn-outline-primary ms-1" target="_blank">
-                            <i class="bi bi-map"></i> View on Network Map
                         </a>
                     </td>
                 </tr>

@@ -318,28 +318,25 @@ include __DIR__ . '/views/layouts/header.php';
     </div>
 </div>
 
-<!-- Not In Map Alert Modal -->
+<!-- Device Location Alert Modal -->
 <div class="modal fade" id="notInMapModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="bi bi-exclamation-circle"></i> ONU Belum Terdaftar
+                    <i class="bi bi-exclamation-circle"></i> Lokasi Topologi Tidak Aktif
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center py-4">
-                <i class="bi bi-map" style="font-size: 3rem; color: var(--secondary-color);"></i>
-                <h5 class="mt-3">ONU Belum Terdaftar di Map</h5>
-                <p class="text-muted mb-2">Device dengan Serial Number <strong id="not-in-map-serial"></strong> belum terdaftar di Network Map.</p>
-                <p class="text-muted mb-0"><small>Silakan tambahkan ONU ini ke map terlebih dahulu untuk melihat lokasi topologi.</small></p>
+                <i class="bi bi-info-circle" style="font-size: 3rem; color: var(--secondary-color);"></i>
+                <h5 class="mt-3">Fitur Topologi Dinonaktifkan</h5>
+                <p class="text-muted mb-2">Device <strong id="not-in-map-serial"></strong> tetap bisa dipantau penuh dari halaman perangkat.</p>
+                <p class="text-muted mb-0"><small>Gunakan detail perangkat dan inventory OLT untuk operasional.</small></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="bi bi-x-lg"></i> Tutup
-                </button>
-                <button type="button" class="btn btn-primary" onclick="window.open('/map.php', '_blank')">
-                    <i class="bi bi-map"></i> Buka Network Map
                 </button>
             </div>
         </div>
@@ -549,28 +546,6 @@ async function loadRecentDevices() {
                 return;
             }
 
-            // Fetch map status for all devices in parallel
-            const mapStatusPromises = devices.map(device =>
-                fetchAPI('/api/get-onu-location.php?serial_number=' + encodeURIComponent(device.serial_number))
-                    .then(result => ({
-                        serial: device.serial_number,
-                        inMap: result && result.success && result.location && result.location.found,
-                        itemType: result?.location?.item_type || 'onu',
-                        itemId: result?.location?.onu?.id || result?.location?.server?.id || null
-                    }))
-                    .catch(() => ({ serial: device.serial_number, inMap: false, itemType: 'onu', itemId: null }))
-            );
-
-            const mapStatuses = await Promise.all(mapStatusPromises);
-            const mapStatusMap = {};
-            mapStatuses.forEach(status => {
-                mapStatusMap[status.serial] = {
-                    inMap: status.inMap,
-                    itemType: status.itemType,
-                    itemId: status.itemId
-                };
-            });
-
             let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr>';
             html += '<th>SN</th>';
             html += '<th>MAC</th>';
@@ -586,8 +561,6 @@ async function loadRecentDevices() {
             html += '</tr></thead><tbody>';
 
             devices.forEach(device => {
-                const mapInfo = mapStatusMap[device.serial_number] || { inMap: false, itemType: 'onu', itemId: null };
-                const isInMap = mapInfo.inMap;
                 const ipAddress = extractIP(device.ip_tr069);
 
                 // Create clickable IP link if IP is valid
@@ -634,24 +607,6 @@ async function loadRecentDevices() {
                     statusBadge = `<span class="badge offline">OFF [-]</span>`;
                 }
 
-                // Map button - conditional based on registration status
-                let mapButton;
-                if (isInMap) {
-                    // Green button - opens map in new tab
-                    let mapUrl;
-                    if (mapInfo.itemType === 'mikrotik') {
-                        // For MikroTik devices, focus on server
-                        mapUrl = `/map.php?focus_type=server&focus_id=${mapInfo.itemId}`;
-                    } else {
-                        // For ONU devices, focus on ONU
-                        mapUrl = `/map.php?focus_type=onu&focus_serial=${encodeURIComponent(device.serial_number)}`;
-                    }
-                    mapButton = `<button class="btn btn-sm btn-success me-1" onclick="window.open('${mapUrl}', '_blank')" title="View on Map"><i class="bi bi-map"></i></button>`;
-                } else {
-                    // Gray button - shows alert
-                    mapButton = `<button class="btn btn-sm btn-secondary me-1" onclick="showNotInMapAlert('${encodeURIComponent(device.serial_number)}')" title="Not Registered in Map"><i class="bi bi-map"></i></button>`;
-                }
-
                 html += '<tr>';
                 html += `<td><a href="/device-detail.php?id=${encodeURIComponent(device.device_id)}">${device.serial_number}</a></td>`;
                 html += `<td>${device.mac_address}</td>`;
@@ -664,7 +619,6 @@ async function loadRecentDevices() {
                 html += `<td class="text-center">${clientsBadge}</td>`;
                 html += `<td>${statusBadge}</td>`;
                 html += `<td>`;
-                html += mapButton;
                 html += `<button class="btn btn-sm btn-primary" onclick="summonDeviceQuick('${device.device_id}')" title="Summon Device"><i class="bi bi-lightning-charge"></i></button>`;
                 html += `</td>`;
                 html += '</tr>';
@@ -944,7 +898,7 @@ async function loadFirstInformGap() {
         if (result.topology_ready === false) {
             countBadge.textContent = '0';
             summaryContainer.innerHTML = '<p class="text-muted mb-2">Belum ada inventory OLT/ONU untuk menghitung gap bootstrap.</p>';
-            container.innerHTML = '<p class="text-muted mb-0">Topology ONU/OLT di GACS masih kosong, jadi belum ada inventory target untuk first-inform gap.</p>';
+            container.innerHTML = '<p class="text-muted mb-0">Inventory ONU/OLT di GACS masih kosong, jadi belum ada target first-inform gap.</p>';
             return;
         }
 
@@ -998,19 +952,21 @@ async function loadFirstInformGap() {
         let html = '<div class="table-responsive"><table class="table table-sm table-hover">';
         html += '<thead><tr><th>Customer</th><th>OLT/ODP</th><th>Port</th><th>Status OLT</th><th>Aksi</th></tr></thead><tbody>';
         result.items.forEach((item) => {
-            const mapUrl = `/map.php?focus_type=onu&focus_id=${encodeURIComponent(item.map_item_id)}`;
             const inventoryUrl = `/olt-onu-inventory.php?olt_id=${encodeURIComponent(item.olt_item_id)}`;
+            const customerName = item.customer_name || item.onu_name || 'N/A';
+            const serialGuess = item.serial_guess || '';
+            const deviceDetailUrl = serialGuess ? `/devices.php?search=${encodeURIComponent(serialGuess)}` : inventoryUrl;
             const oltStatus = item.onu_status === 'online'
                 ? '<span class="badge bg-danger">Online Belum ACS</span>'
                 : item.onu_status === 'offline'
                     ? '<span class="badge bg-secondary">Offline</span>'
                     : '<span class="badge bg-warning text-dark">Unknown</span>';
             html += '<tr>';
-            html += `<td><a href="${mapUrl}" target="_blank">${item.customer_name || item.onu_name || 'N/A'}</a><br><small class="text-muted">${item.serial_guess || 'N/A'}</small></td>`;
+            html += `<td><a href="${deviceDetailUrl}" target="_blank">${customerName}</a><br><small class="text-muted">${serialGuess || 'N/A'}</small></td>`;
             html += `<td>${item.olt_name || 'N/A'}<br><small class="text-muted">${item.odp_name || 'N/A'}</small></td>`;
             html += `<td>${item.odp_port || 'N/A'}</td>`;
             html += `<td>${oltStatus}<br><small class="text-muted">Checklist: Bootstrap → Inform → Provision</small></td>`;
-            html += `<td><div class="d-grid gap-1"><a class="btn btn-sm btn-outline-secondary" href="${inventoryUrl}" target="_blank">Inventory</a><a class="btn btn-sm btn-outline-dark" href="${mapUrl}" target="_blank">Map</a></div></td>`;
+            html += `<td><div class="d-grid gap-1"><a class="btn btn-sm btn-outline-secondary" href="${inventoryUrl}" target="_blank">Inventory</a><a class="btn btn-sm btn-outline-dark" href="${deviceDetailUrl}" target="_blank">Cari Device</a></div></td>`;
             html += '</tr>';
         });
         html += '</tbody></table></div>';

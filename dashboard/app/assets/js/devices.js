@@ -783,9 +783,6 @@ function renderInfrastructureItems(items, itemType) {
                     <button class="btn btn-sm btn-warning me-1" onclick="window.open('/olt-onu-inventory.php?olt_id=${focusId}&view_mode=online-missing', '_blank')" title="Lihat ONU online yang belum masuk ACS">
                         <i class="bi bi-broadcast-pin"></i>
                     </button>
-                    <button class="btn btn-sm btn-success" onclick="window.open('/map.php?focus_type=${focusType}&focus_id=${focusId}', '_blank')" title="View on Map">
-                        <i class="bi bi-map"></i>
-                    </button>
                 </td>
             `;
         } else {
@@ -798,11 +795,7 @@ function renderInfrastructureItems(items, itemType) {
                 <td>${lat}</td>
                 <td>${lng}</td>
                 <td>${statusBadge}</td>
-                <td>
-                    <button class="btn btn-sm btn-success" onclick="window.open('/map.php?focus_type=${focusType}&focus_id=${focusId}', '_blank')" title="View on Map">
-                        <i class="bi bi-map"></i>
-                    </button>
-                </td>
+                <td><span class="text-muted small">Topologi nonaktif</span></td>
             `;
         }
 
