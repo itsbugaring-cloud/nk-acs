@@ -179,11 +179,9 @@ async function loadDevices(isAutoRefresh = false) {
     let hasMore = true;
 
     try {
-        // Load first chunk with map data in parallel
-        const [firstChunk, mapCountsResult, mapItemsResult, oltSummaryResult] = await Promise.all([
+        // Load first chunk
+        const [firstChunk, oltSummaryResult] = await Promise.all([
             fetchAPI(`/api/get-devices.php?limit=${chunkSize}&skip=${skip}`),
-            fetchAPI('/api/get-map-counts.php'),
-            fetchAPI('/api/map-get-items.php'),
             fetchAPI('/api/olt-inventory-summary.php')
         ]);
 
@@ -192,9 +190,7 @@ async function loadDevices(isAutoRefresh = false) {
         }
 
         allDevices = firstChunk.devices || [];
-        if (mapItemsResult && mapItemsResult.success) {
-            allMapItems = mapItemsResult.items || [];
-        }
+        allMapItems = [];
         oltInventorySummary = (oltSummaryResult && oltSummaryResult.success && oltSummaryResult.summary)
             ? oltSummaryResult.summary
             : {};
@@ -242,30 +238,15 @@ async function loadDevices(isAutoRefresh = false) {
             updateSearchPlaceholder('onu');
         }
 
-        // Re-apply current filter and sorting
-        if (currentFilterType === 'onu') {
-            let devicesToRender = applyDeviceSearchAndQuickFilter(allDevices);
-
-            // Re-apply sorting if active
-            if (currentSortColumn) {
-                devicesToRender = applySorting(devicesToRender, currentSortColumn, currentSortDirection);
-            }
-
-            renderDevices(devicesToRender);
-            updateDeviceCount(devicesToRender.length, allDevices.length);
-            updateDeviceStats(allDevices);
-        } else {
-            // For infrastructure tabs, re-render map items
-            renderMapItems(currentFilterType);
-            updateDeviceStats([], false);
+        // Re-apply current filter and sorting (ONU only)
+        let devicesToRender = applyDeviceSearchAndQuickFilter(allDevices);
+        if (currentSortColumn) {
+            devicesToRender = applySorting(devicesToRender, currentSortColumn, currentSortDirection);
         }
-
-        // Update tab counts using map data
-        if (mapCountsResult && mapCountsResult.success) {
-            updateDeviceTypeCountsFromMap(allDevices, mapCountsResult.counts);
-        } else {
-            updateDeviceTypeCountsFromMap(allDevices, {});
-        }
+        renderDevices(devicesToRender);
+        updateDeviceCount(devicesToRender.length, allDevices.length);
+        updateDeviceStats(allDevices);
+        updateDeviceTypeCountsFromMap(allDevices, {});
 
         // Restore scroll position and sort icons after auto-refresh
         if (isAutoRefresh) {
@@ -324,45 +305,9 @@ async function renderDevices(devices) {
     // Update pagination UI
     updatePaginationUI(totalDevices);
 
-    // Fetch map status for all devices on current page using BATCH API
-    const serialNumbers = devicesToRender.map(device => device.serial_number);
-
-    let mapStatusMap = {};
-
-    try {
-        const batchResult = await fetchAPI('/api/get-onu-location-batch.php', {
-            method: 'POST',
-            body: JSON.stringify({ serial_numbers: serialNumbers })
-        });
-
-        if (batchResult && batchResult.success && batchResult.locations) {
-            // Convert batch result to map status format
-            Object.keys(batchResult.locations).forEach(serial => {
-                const location = batchResult.locations[serial];
-                mapStatusMap[serial] = {
-                    inMap: location.found || false,
-                    itemType: location.item_type || 'onu',
-                    itemId: location.onu?.id || location.server?.id || null
-                };
-            });
-        }
-    } catch (error) {
-        console.error('Batch map status fetch failed:', error);
-        // Fallback: all devices marked as not in map
-        devicesToRender.forEach(device => {
-            mapStatusMap[device.serial_number] = {
-                inMap: false,
-                itemType: 'onu',
-                itemId: null
-            };
-        });
-    }
-
     devicesToRender.forEach(device => {
         const row = document.createElement('tr');
         const ipAddress = extractIP(device.ip_tr069);
-        const mapInfo = mapStatusMap[device.serial_number] || { inMap: false, itemType: 'onu', itemId: null };
-        const isInMap = mapInfo.inMap;
 
         // Create clickable IP link if IP is valid
         let ipDisplay;
@@ -397,28 +342,6 @@ async function renderDevices(devices) {
             rxDisplay = `<span class="badge ${rxBadgeClass}">${device.rx_power} dBm</span>`;
         } else {
             rxDisplay = `<span class="badge ${rxBadgeClass}">N/A</span>`;
-        }
-
-        // Map button - conditional based on registration status
-        let mapButton;
-        if (isInMap) {
-            // Green button - opens map in new tab
-            let mapUrl;
-            if (mapInfo.itemType === 'mikrotik') {
-                // For MikroTik devices, focus on server
-                mapUrl = `/map.php?focus_type=server&focus_id=${mapInfo.itemId}`;
-            } else {
-                // For ONU devices, focus on ONU
-                mapUrl = `/map.php?focus_type=onu&focus_serial=${encodeURIComponent(device.serial_number)}`;
-            }
-            mapButton = `<button class="btn btn-sm btn-success me-1" onclick="window.open('${mapUrl}', '_blank')" title="View on Map">
-                <i class="bi bi-map"></i>
-            </button>`;
-        } else {
-            // Gray button - shows alert
-            mapButton = `<button class="btn btn-sm btn-secondary me-1" onclick="showNotInMapAlert('${encodeURIComponent(device.serial_number)}')" title="Not Registered in Map">
-                <i class="bi bi-map"></i>
-            </button>`;
         }
 
         // Status badge with ping
@@ -463,7 +386,6 @@ async function renderDevices(devices) {
             <td data-sort-value="${device.status}">${statusDisplay}</td>
             <td class="tags-column" data-sort-value="${tagsSortValue}" style="display: ${tagsColumnDisplay};">${tagsDisplay}</td>
             <td>
-                ${mapButton}
                 <button class="btn btn-sm btn-outline-dark me-1" onclick="openDeviceInspector('${encodeURIComponent(device.device_id)}')" title="Inspect Device">
                     <i class="bi bi-layout-sidebar-inset-reverse"></i>
                 </button>
@@ -938,11 +860,17 @@ function updateDeviceTypeCountsFromMap(devices, mapCounts) {
     };
 
     // Update badges
-    document.getElementById('count-onu').textContent = counts.onu;
-    document.getElementById('count-odp').textContent = counts.odp;
-    document.getElementById('count-odc').textContent = counts.odc;
-    document.getElementById('count-olt').textContent = counts.olt;
-    document.getElementById('count-server').textContent = counts.server;
+    const countOnu = document.getElementById('count-onu');
+    const countOdp = document.getElementById('count-odp');
+    const countOdc = document.getElementById('count-odc');
+    const countOlt = document.getElementById('count-olt');
+    const countServer = document.getElementById('count-server');
+
+    if (countOnu) countOnu.textContent = counts.onu;
+    if (countOdp) countOdp.textContent = counts.odp;
+    if (countOdc) countOdc.textContent = counts.odc;
+    if (countOlt) countOlt.textContent = counts.olt;
+    if (countServer) countServer.textContent = counts.server;
 }
 
 // Generate table header based on device type

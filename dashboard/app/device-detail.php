@@ -81,11 +81,6 @@ include __DIR__ . '/views/layouts/header.php';
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="topology-tab" data-bs-toggle="tab" data-bs-target="#topology" type="button" role="tab">
-                        <i class="bi bi-diagram-3"></i> Topology Location
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="wan-tab" data-bs-toggle="tab" data-bs-target="#wan" type="button" role="tab">
                         <i class="bi bi-globe"></i> WAN Connections <span id="wan-count-badge" class="badge bg-primary ms-1">0</span>
                     </button>
@@ -107,11 +102,6 @@ include __DIR__ . '/views/layouts/header.php';
                 <!-- Overview Tab -->
                 <div class="tab-pane fade show active" id="overview" role="tabpanel">
                     <div id="overview-content"></div>
-                </div>
-
-                <!-- Topology Location Tab -->
-                <div class="tab-pane fade" id="topology" role="tabpanel">
-                    <div id="topology-content"></div>
                 </div>
 
                 <!-- WAN Connections Tab -->

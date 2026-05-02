@@ -217,7 +217,6 @@ function getCommandPalettePages() {
         { label: 'Dashboard', hint: 'Buka ringkasan utama', url: '/dashboard.php', icon: 'speedometer2' },
         { label: 'Perangkat', hint: 'Buka daftar ONT/ONU', url: '/devices.php', icon: 'router' },
         { label: 'OLT', hint: 'Buka registry OLT manual', url: '/olt-registry.php', icon: 'broadcast-pin' },
-        { label: 'Topologi', hint: 'Buka peta jaringan', url: '/map.php', icon: 'diagram-3' },
         { label: 'Alarm', hint: 'Buka alarm center', url: '/alarm-events.php', icon: 'bell' },
         { label: 'Integrasi', hint: 'Buka konfigurasi ACS/MikroTik/Bot', url: '/configuration.php', icon: 'gear' }
     ];

@@ -453,8 +453,11 @@ async function loadDeviceDetail(isAutoRefresh = false) {
             </div>
         `;
 
-        // Populate Topology Location Tab
-        document.getElementById('topology-content').innerHTML = renderTopologyLocationTab(locationResult);
+        // Populate Topology Location Tab (optional; hidden when map feature is disabled)
+        const topologyContent = document.getElementById('topology-content');
+        if (topologyContent) {
+            topologyContent.innerHTML = renderTopologyLocationTab(locationResult);
+        }
 
         // Populate WAN Connections Tab
         document.getElementById('wan-content').innerHTML = renderWANDetailsTab(device.wan_details);
