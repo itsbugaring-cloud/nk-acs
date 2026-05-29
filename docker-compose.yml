@@ -40,6 +40,7 @@ services:
     build:
       context: .
       dockerfile: ./genieacs-init/Dockerfile
+      network: host
     container_name: ${PROJECT_NAME}-genieacs-init
     restart: "no"
     depends_on:
@@ -108,6 +109,7 @@ services:
     build:
       context: .
       dockerfile: ./dashboard/docker/php/Dockerfile
+      network: host
     container_name: ${PROJECT_NAME}-dashboard
     restart: unless-stopped
     depends_on:
@@ -148,6 +150,7 @@ services:
     build:
       context: .
       dockerfile: ./dashboard/docker/php/Dockerfile
+      network: host
     container_name: ${PROJECT_NAME}-telegram-poller
     restart: unless-stopped
     depends_on:
@@ -172,6 +175,7 @@ services:
     build:
       context: .
       dockerfile: ./dashboard/docker/php/Dockerfile
+      network: host
     container_name: ${PROJECT_NAME}-telegram-monitor
     restart: unless-stopped
     depends_on:
