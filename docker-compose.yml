@@ -91,7 +91,7 @@ services:
       - "7547:7547"
       - "7557:7557"
       - "7567:7567"
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - genieacs_ext:/opt/genieacs/ext
       - genieacs_logs:/var/log/genieacs
