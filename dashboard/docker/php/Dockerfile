@@ -5,6 +5,9 @@ RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --ign
 
 FROM php:8.4-apache
 
+RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/*.sources 2>/dev/null; \
+    sed -i 's|http://|https://|g' /etc/apt/sources.list 2>/dev/null; true
+
 RUN apt-get update \
  && apt-get install -y --no-install-recommends default-mysql-client libcurl4-openssl-dev libonig-dev \
  && docker-php-ext-install mysqli curl mbstring sockets \
