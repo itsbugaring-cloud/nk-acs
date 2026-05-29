@@ -50,6 +50,27 @@ include __DIR__ . '/views/layouts/header.php';
             </div>
         </div>
 
+        <!-- Inform Gap Section -->
+        <div class="card bg-light mb-3" id="inform-gap-section">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong><i class="bi bi-exclamation-triangle text-warning"></i> Stale Devices</strong>
+                        <span class="text-muted ms-2" id="stale-info">Loading...</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-info" onclick="loadInformGap()">
+                            <i class="bi bi-arrow-clockwise"></i> Cek Gap
+                        </button>
+                        <button class="btn btn-sm btn-warning" id="btn-push-all-stale" onclick="pushAllStale()" disabled>
+                            <i class="bi bi-send"></i> Push All Stale
+                        </button>
+                    </div>
+                </div>
+                <div id="stale-devices-list" class="mt-2" style="max-height: 200px; overflow-y: auto; display: none;"></div>
+            </div>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-hover table-sm" style="white-space: nowrap;">
                 <thead>
@@ -207,7 +228,107 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     document.getElementById('olt-onu-view-mode').value = initialViewMode;
     loadOltInventoryPage();
+    loadInformGap();
 });
+
+let staleDevices = [];
+
+async function loadInformGap() {
+    const infoEl = document.getElementById('stale-info');
+    const listEl = document.getElementById('stale-devices-list');
+    const btnPush = document.getElementById('btn-push-all-stale');
+    infoEl.textContent = 'Checking...';
+
+    const result = await fetchAPI('/api/first-inform-gap.php?limit=200', { timeout: 60000 });
+    if (!result || !result.success) {
+        infoEl.textContent = 'Gagal cek gap';
+        return;
+    }
+
+    const missingCount = result.missing_count || 0;
+    const onlineMissing = result.online_missing_count || 0;
+    const staleCount = result.stale_count || 0;
+    staleDevices = result.stale_devices || [];
+
+    infoEl.innerHTML = `
+        <span class="badge bg-danger">${missingCount} belum inform</span>
+        <span class="badge bg-warning text-dark">${onlineMissing} online belum ACS</span>
+        <span class="badge bg-info">${staleCount} stale (>15min)</span>
+    `;
+
+    if (staleDevices.length > 0) {
+        btnPush.disabled = false;
+        btnPush.textContent = `Push ${staleDevices.length} Stale`;
+        listEl.style.display = 'block';
+        listEl.innerHTML = `
+            <table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem;">
+                <thead><tr><th>Serial</th><th>Device ID</th><th>Last Inform</th><th>Action</th></tr></thead>
+                <tbody>
+                    ${staleDevices.slice(0, 50).map(d => `
+                        <tr>
+                            <td>${escapeHtml(d.serial)}</td>
+                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.device_id)}</td>
+                            <td>${d.last_inform ? new Date(d.last_inform).toLocaleString('id-ID') : 'N/A'}</td>
+                            <td><button class="btn btn-xs btn-outline-warning" onclick="pushSingle('${escapeHtml(d.device_id)}', this)"><i class="bi bi-send"></i></button></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } else {
+        btnPush.disabled = true;
+        listEl.style.display = 'none';
+    }
+}
+
+async function pushSingle(deviceId, btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    const result = await fetchAPI('/api/push-inform-batch.php', {
+        method: 'POST',
+        body: JSON.stringify({ device_ids: [deviceId] }),
+    });
+    if (result && result.success && result.success_count > 0) {
+        btn.innerHTML = '<i class="bi bi-check text-success"></i>';
+        showToast('Push inform berhasil', 'success');
+    } else {
+        btn.innerHTML = '<i class="bi bi-x text-danger"></i>';
+        showToast(result?.message || 'Push inform gagal', 'danger');
+    }
+}
+
+async function pushAllStale() {
+    if (!staleDevices.length) return;
+    if (!confirm(`Push inform ke ${staleDevices.length} device stale? Ini akan mengirim connection request ke semua device.`)) return;
+
+    const btn = document.getElementById('btn-push-all-stale');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Pushing...';
+
+    const deviceIds = staleDevices.map(d => d.device_id);
+
+    // Send in batches of 50
+    let totalSuccess = 0;
+    let totalFail = 0;
+    for (let i = 0; i < deviceIds.length; i += 50) {
+        const batch = deviceIds.slice(i, i + 50);
+        const result = await fetchAPI('/api/push-inform-batch.php', {
+            method: 'POST',
+            body: JSON.stringify({ device_ids: batch }),
+        });
+        if (result && result.success) {
+            totalSuccess += result.success_count || 0;
+            totalFail += result.fail_count || 0;
+        }
+    }
+
+    showToast(`Push selesai: ${totalSuccess} berhasil, ${totalFail} gagal`, totalFail > 0 ? 'warning' : 'success');
+    btn.innerHTML = '<i class="bi bi-send"></i> Push All Stale';
+    btn.disabled = false;
+
+    // Reload gap data after push
+    setTimeout(() => loadInformGap(), 5000);
+}
 </script>
 
 <?php include __DIR__ . '/views/layouts/footer.php'; ?>
