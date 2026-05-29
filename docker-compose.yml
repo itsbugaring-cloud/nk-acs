@@ -36,6 +36,27 @@ services:
     networks:
       - acs_net
 
+  mariadb:
+    image: mariadb:11
+    container_name: ${PROJECT_NAME}-mariadb
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DASHBOARD_DB_NAME}
+      MARIADB_USER: ${DASHBOARD_DB_USER}
+      MARIADB_PASSWORD: ${DASHBOARD_DB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./dashboard/app/database.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   genieacs-init:
     build:
       context: .
@@ -115,6 +136,8 @@ services:
     depends_on:
       genieacs:
         condition: service_started
+      mariadb:
+        condition: service_healthy
     environment:
       APP_NAME: NETKING-ACS
       APP_URL: ${PUBLIC_DASHBOARD_URL}
@@ -201,6 +224,7 @@ volumes:
   mongo_config:
   genieacs_ext:
   genieacs_logs:
+  mariadb_data:
 
 networks:
   acs_net:
