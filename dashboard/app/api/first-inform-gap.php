@@ -42,6 +42,9 @@ if (!$devicesResult['success']) {
 
 $acsDeviceIds = [];
 $acsSerials = [];
+$acsLastInform = [];
+$staleThresholdSec = 900; // 15 minutes
+
 foreach ($devicesResult['data'] as $device) {
     $deviceId = $device['_id'] ?? '';
     if ($deviceId !== '') {
@@ -53,7 +56,23 @@ foreach ($devicesResult['data'] as $device) {
         $serial = $device['InternetGatewayDevice']['DeviceInfo']['SerialNumber']['_value'] ?? null;
     }
     if ($serial) {
-        $acsSerials[strtolower($serial)] = true;
+        $serialLower = strtolower($serial);
+        $acsSerials[$serialLower] = true;
+
+        // Track last inform time and device ID for stale detection
+        $lastInform = $device['_lastInform'] ?? null;
+        $acsLastInform[$serialLower] = [
+            'device_id' => $deviceId,
+            'last_inform' => $lastInform,
+            'is_stale' => false,
+        ];
+
+        if ($lastInform) {
+            $lastInformTs = strtotime($lastInform);
+            if ($lastInformTs !== false && (time() - $lastInformTs) > $staleThresholdSec) {
+                $acsLastInform[$serialLower]['is_stale'] = true;
+            }
+        }
     }
 }
 
@@ -260,6 +279,7 @@ jsonResponse([
     'missing_count' => count($missing),
     'online_missing_count' => count(array_filter($missing, static fn(array $row): bool => ($row['onu_status'] ?? '') === 'online')),
     'filtered_missing_count' => count($filteredMissing),
+    'stale_count' => count(array_filter($acsLastInform, static fn(array $info): bool => $info['is_stale'])),
     'filters' => [
         'olt' => $requestedOlt,
         'status' => $requestedStatus,
@@ -267,4 +287,13 @@ jsonResponse([
     ],
     'summary_by_olt' => $summaryRows,
     'items' => array_slice($filteredMissing, 0, $requestedLimit),
+    'stale_devices' => array_values(array_map(
+        static fn(string $serial, array $info): array => [
+            'serial' => strtoupper($serial),
+            'device_id' => $info['device_id'],
+            'last_inform' => $info['last_inform'],
+        ],
+        array_keys(array_filter($acsLastInform, static fn(array $info): bool => $info['is_stale'])),
+        array_filter($acsLastInform, static fn(array $info): bool => $info['is_stale'])
+    )),
 ]);
