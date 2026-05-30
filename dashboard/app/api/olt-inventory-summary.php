@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 requireLogin();
 
 use App\GenieACS;
+use App\DeviceCache;
 use App\OltInventorySync;
 
 $conn = getDBConnection();
@@ -29,7 +30,7 @@ function getAcsSerialLookup(mysqli $conn): array
         $credentials['password']
     );
 
-    $devicesResult = $genieacs->getDevices([], 0, 0);
+    $devicesResult = DeviceCache::getDevices($genieacs);
     if (!$devicesResult['success']) {
         return [];
     }

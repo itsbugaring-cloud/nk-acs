@@ -9,6 +9,7 @@ if (!isGenieACSConfigured()) {
 }
 
 use App\GenieACS;
+use App\DeviceCache;
 use App\GenieACS_Fast;
 
 function extractConnectionRequestUrl(array $device): ?string
@@ -71,7 +72,7 @@ $genieacs = new GenieACS(
     $credentials['password']
 );
 
-$devicesResult = $genieacs->getDevices([], 0, 0);
+$devicesResult = DeviceCache::getDevices($genieacs);
 if (!$devicesResult['success']) {
     jsonResponse(['success' => false, 'message' => 'Gagal mengambil data device']);
 }

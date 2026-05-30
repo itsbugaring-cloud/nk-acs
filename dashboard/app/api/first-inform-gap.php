@@ -9,6 +9,7 @@ if (!isGenieACSConfigured()) {
 }
 
 use App\GenieACS;
+use App\DeviceCache;
 use App\OltInventorySync;
 
 $requestedOlt = trim((string) ($_GET['olt'] ?? ''));
@@ -35,7 +36,7 @@ $genieacs = new GenieACS(
     $credentials['password']
 );
 
-$devicesResult = $genieacs->getDevices([], 0, 0);
+$devicesResult = DeviceCache::getDevices($genieacs);
 if (!$devicesResult['success']) {
     jsonResponse(['success' => false, 'message' => 'Gagal mengambil data devices dari GenieACS']);
 }

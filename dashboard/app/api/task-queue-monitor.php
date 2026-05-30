@@ -9,6 +9,7 @@ if (!isGenieACSConfigured()) {
 }
 
 use App\GenieACS;
+use App\DeviceCache;
 use App\GenieACS_Fast;
 
 function pickTime(array $row): ?int
@@ -69,7 +70,7 @@ $tasks = is_array($tasksResult['data'] ?? null) ? $tasksResult['data'] : [];
 $faults = is_array($faultsResult['data'] ?? null) ? $faultsResult['data'] : [];
 $deviceMeta = [];
 
-$devicesResult = $genieacs->getDevices([], 0, 0);
+$devicesResult = DeviceCache::getDevices($genieacs);
 if ($devicesResult['success'] && is_array($devicesResult['data'] ?? null)) {
     foreach ($devicesResult['data'] as $device) {
         $parsed = GenieACS_Fast::parseDeviceDataFast($device);

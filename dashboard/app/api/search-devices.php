@@ -9,6 +9,7 @@ if (!isGenieACSConfigured()) {
 }
 
 use App\GenieACS;
+use App\DeviceCache;
 use App\GenieACS_Fast;
 
 $query = strtolower(trim((string) ($_GET['q'] ?? '')));
@@ -33,7 +34,7 @@ $genieacs = new GenieACS(
     $credentials['password']
 );
 
-$devicesResult = $genieacs->getDevices([], 0, 0);
+$devicesResult = DeviceCache::getDevices($genieacs);
 if (!$devicesResult['success']) {
     jsonResponse(['success' => false, 'message' => 'Gagal mengambil devices dari GenieACS']);
 }
