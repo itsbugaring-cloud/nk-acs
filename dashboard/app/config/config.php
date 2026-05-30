@@ -27,3 +27,4 @@ ini_set('memory_limit', (string) envValue('PHP_MEMORY_LIMIT', '768M'));
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/../lib/helpers.php';
+require_once __DIR__ . '/../lib/DeviceCache.php';
